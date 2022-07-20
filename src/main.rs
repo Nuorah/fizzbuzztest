@@ -21,18 +21,17 @@ struct FizzBuzzParams {
 }
 
 fn fizzbuzz_generator(int1: u32, int2: u32, limit: u32, str1: &str, str2: &str) -> Vec<String> {
-    (1..limit+1).map(|i| {
-        match (i%int1, i%int2) {
-            (0, 0) => str1.to_owned() + &str2,
-            (0, _) => str1.to_owned(),
-            (_, 0) => str2.to_owned(),
-            (_, _) => i.to_string()
-        }
-    })
-        .collect()
-}
+    ((1..limit+1).map(|i| {
+                match (i.checked_rem(int1), i.checked_rem(int2)) {
+                    (Some(0), Some(0)) => str1.to_owned() + &str2,
+                    (Some(0), _) => str1.to_owned(),
+                    (_, Some(0)) => str2.to_owned(),
+                    (_, _) => i.to_string()
+                }
+            })).collect()
+    }
 
-#[get("/")]
+#[get("/fizzbuzz")]
 async fn fizzbuzz(fizzbuzzparams: web::Query<FizzBuzzParams>) -> Result<web::Json<Vec<String>>> {
     Ok(web::Json(
         fizzbuzz_generator(
@@ -76,7 +75,7 @@ mod tests {
     async fn test_fizzbuzz_missing_param() {
         let app = test::init_service(App::new().service(fizzbuzz)).await;
         let req = test::TestRequest::get()
-            .uri("/?int1=3&int2=5&limit=15&str2=bush")
+            .uri("/fizzbuzz/?int1=3&int2=5&limit=15&str2=bush")
             .to_request();
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_client_error())
@@ -86,7 +85,7 @@ mod tests {
     async fn test_fizzbuzz_invalid_param() {
         let app = test::init_service(App::new().service(fizzbuzz)).await;
         let req = test::TestRequest::get()
-            .uri("/?int1=fizz&int2=5&limit=15&str1=fizz&str2=bush")
+            .uri("/fizzbuzz/?int1=fizz&int2=5&limit=15&str1=fizz&str2=bush")
             .to_request();
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_client_error())
